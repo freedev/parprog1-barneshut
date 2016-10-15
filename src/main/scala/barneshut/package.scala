@@ -41,36 +41,50 @@ package object barneshut {
     def total: Int
 
     def insert(b: Body): Quad
+    
+    def contains(b: Body): Boolean = {
+      val s = size/2;
+      ((centerX-s) <= b.x && (centerX+s) >= b.x &&
+          (centerY-s) <= b.y && (centerY+s) >= b.y )
+    }
   }
 
   case class Empty(centerX: Float, centerY: Float, size: Float) extends Quad {
-    def massX: Float = ???
-    def massY: Float = ???
-    def mass: Float = ???
-    def total: Int = ???
-    def insert(b: Body): Quad = ???
+    def massX: Float = centerX
+    def massY: Float = centerY
+    def mass: Float = 0
+    def total: Int = 0
+    def insert(b: Body): Quad = Leaf(centerX, centerY, size, Seq(b))
   }
 
   case class Fork(
     nw: Quad, ne: Quad, sw: Quad, se: Quad
   ) extends Quad {
-    val centerX: Float = ???
-    val centerY: Float = ???
-    val size: Float = ???
-    val mass: Float = ???
-    val massX: Float = ???
-    val massY: Float = ???
-    val total: Int = ???
+    val centerX: Float = (nw.centerX + ne.centerX + sw.centerX + se.centerX)/4
+    val centerY: Float = (nw.centerY + ne.centerY + sw.centerY + se.centerY)/4
+    val size: Float = nw.size
+    val mass: Float = nw.mass + ne.mass + sw.mass + se.mass
+    val massX: Float = (nw.mass * nw.massX + ne.mass * ne.massX + sw.mass * sw.massX + se.mass * se.massX) / mass
+    val massY: Float = (nw.mass * nw.massY + ne.mass * ne.massY + sw.mass * sw.massY + se.mass * se.massY) / mass
+    val total: Int = nw.total + ne.total + sw.total + se.total
 
     def insert(b: Body): Fork = {
-      ???
+      if (nw.contains(b))
+        nw.insert(b)
+      else if (ne.contains(b))
+        ne.insert(b)
+      else if (sw.contains(b))
+        sw.insert(b)
+      else
+        se.insert(b)
+      Fork(nw, ne, sw, se)
     }
   }
 
   case class Leaf(centerX: Float, centerY: Float, size: Float, bodies: Seq[Body])
   extends Quad {
-    val (mass, massX, massY) = (??? : Float, ??? : Float, ??? : Float)
-    val total: Int = ???
+    val (mass, massX, massY) = (bodies.foldLeft(0.0f)(_ + _.mass) : Float,bodies.foldLeft(0.0f)(_ + _.x) : Float, bodies.foldLeft(0.0f)(_ + _.y) : Float)
+    val total: Int = bodies.size
     def insert(b: Body): Quad = ???
   }
 
