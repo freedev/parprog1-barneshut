@@ -41,11 +41,11 @@ package object barneshut {
     def total: Int
 
     def insert(b: Body): Quad
-    
+
     def contains(b: Body): Boolean = {
-      val s = size/2;
-      ((centerX-s) <= b.x && (centerX+s) >= b.x &&
-          (centerY-s) <= b.y && (centerY+s) >= b.y )
+      val s = size / 2;
+      ((centerX - s) <= b.x && (centerX + s) >= b.x &&
+        (centerY - s) <= b.y && (centerY + s) >= b.y)
     }
   }
 
@@ -54,19 +54,32 @@ package object barneshut {
     def massY: Float = centerY
     def mass: Float = 0
     def total: Int = 0
-    def insert(b: Body): Quad = Leaf(centerX, centerY, size, Seq(b))
+    def insert(b: Body): Quad = Leaf(centerX, centerY, size, Seq(b)) 
   }
 
   case class Fork(
-    nw: Quad, ne: Quad, sw: Quad, se: Quad
-  ) extends Quad {
-    val centerX: Float = (nw.centerX + ne.centerX + sw.centerX + se.centerX)/4
-    val centerY: Float = (nw.centerY + ne.centerY + sw.centerY + se.centerY)/4
-    val size: Float = nw.size
+      nw: Quad, ne: Quad, sw: Quad, se: Quad) extends Quad {
+    val centerX: Float = (nw.centerX + ne.centerX + sw.centerX + se.centerX) / 4
+    val centerY: Float = (nw.centerY + ne.centerY + sw.centerY + se.centerY) / 4
+    val size: Float = nw.size*2
     val mass: Float = nw.mass + ne.mass + sw.mass + se.mass
-    val massX: Float = (nw.mass * nw.massX + ne.mass * ne.massX + sw.mass * sw.massX + se.mass * se.massX) / mass
-    val massY: Float = (nw.mass * nw.massY + ne.mass * ne.massY + sw.mass * sw.massY + se.mass * se.massY) / mass
     val total: Int = nw.total + ne.total + sw.total + se.total
+    val massX: Float = { 
+      if (total == 0)
+        centerX
+      else if (mass != 0) 
+        (nw.mass * nw.massX + ne.mass * ne.massX + sw.mass * sw.massX + se.mass * se.massX) / mass 
+      else 
+        0
+    }
+    val massY: Float = { 
+      if (total == 0) 
+        centerY
+      else if (mass != 0) 
+        (nw.mass * nw.massY + ne.mass * ne.massY + sw.mass * sw.massY + se.mass * se.massY) / mass 
+      else 
+        0
+    }
 
     def insert(b: Body): Fork = {
       if (nw.contains(b))
@@ -82,10 +95,18 @@ package object barneshut {
   }
 
   case class Leaf(centerX: Float, centerY: Float, size: Float, bodies: Seq[Body])
-  extends Quad {
-    val (mass, massX, massY) = (bodies.foldLeft(0.0f)(_ + _.mass) : Float,bodies.foldLeft(0.0f)(_ + _.x) : Float, bodies.foldLeft(0.0f)(_ + _.y) : Float)
+      extends Quad {
+    val (mass, massX, massY) = (bodies.foldLeft(0.0f)(_ + _.mass): Float, bodies.foldLeft(0.0f)(_ + _.x): Float, bodies.foldLeft(0.0f)(_ + _.y): Float)
     val total: Int = bodies.size
-    def insert(b: Body): Quad = ???
+    def insert(b: Body): Quad = {
+      if (size > minimumSize) {
+        val s = size / 2
+        val fork = Fork(Empty(centerX, centerY, s), Empty(centerX + s, centerY, s), Empty(centerX, centerY + s, s), Empty(centerX + s, centerY + s, s))
+        bodies.foldLeft(fork)((a, b) => a.insert(b))
+      } else {
+        Leaf(centerX, centerY, size, bodies :+ b)
+      }
+    }
   }
 
   def minimumSize = 0.00001f
@@ -133,13 +154,17 @@ package object barneshut {
       }
 
       def traverse(quad: Quad): Unit = (quad: Quad) match {
-        case Empty(_, _, _) =>
-          // no force
-        case Leaf(_, _, _, bodies) =>
-          // add force contribution of each body by calling addForce
-        case Fork(nw, ne, sw, se) =>
-          // see if node is far enough from the body,
-          // or recursion is needed
+        case Empty(_, _, _) => 
+        // no force
+        case Leaf(_, _, _, bodies) => for ( b <- bodies ) addForce(b.mass, b.mass * b.x, b.mass * b.y)
+        // add force contribution of each body by calling addForce
+        case Fork(nw, ne, sw, se) =>  if (quad.size / distance(quad.massX, quad.massY, x, y) < theta) {
+          
+        } else {
+          
+        }
+        // see if node is far enough from the body,
+        // or recursion is needed
       }
 
       traverse(quad)
@@ -190,13 +215,12 @@ package object barneshut {
               quad(x, y, nspan, nAchievedParallelism),
               quad(x + nspan, y, nspan, nAchievedParallelism),
               quad(x, y + nspan, nspan, nAchievedParallelism),
-              quad(x + nspan, y + nspan, nspan, nAchievedParallelism)
-            ) else (
+              quad(x + nspan, y + nspan, nspan, nAchievedParallelism))
+            else (
               quad(x, y, nspan, nAchievedParallelism),
               quad(x + nspan, y, nspan, nAchievedParallelism),
               quad(x, y + nspan, nspan, nAchievedParallelism),
-              quad(x + nspan, y + nspan, nspan, nAchievedParallelism)
-            )
+              quad(x + nspan, y + nspan, nspan, nAchievedParallelism))
           Fork(nw, ne, sw, se)
         }
       }
@@ -212,7 +236,7 @@ package object barneshut {
 
     def clear() = timeMap.clear()
 
-    def timed[T](title: String)(body: =>T): T = {
+    def timed[T](title: String)(body: => T): T = {
       var res: T = null.asInstanceOf[T]
       val totalTime = /*measure*/ {
         val startTime = System.currentTimeMillis()
@@ -232,7 +256,7 @@ package object barneshut {
     override def toString = {
       timeMap map {
         case (k, (total, num)) => k + ": " + (total / num * 100).toInt / 100.0 + " ms"
-      } mkString("\n")
+      } mkString ("\n")
     }
   }
 }
