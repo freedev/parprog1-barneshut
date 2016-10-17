@@ -95,7 +95,7 @@ package object barneshut {
 
   case class Leaf(centerX: Float, centerY: Float, size: Float, bodies: Seq[Body])
       extends Quad {
-    val (mass, massX, massY) = (bodies.foldLeft(0.0f)(_ + _.mass): Float, bodies.foldLeft(0.0f)(_ + _.x): Float, bodies.foldLeft(0.0f)(_ + _.y): Float)
+    val (mass, massX, massY) = (bodies.foldLeft(0.0f)(_ + _.mass): Float, bodies.foldLeft(0.0f)(_ + _.x)/bodies.size: Float, bodies.foldLeft(0.0f)(_ + _.y)/bodies.size: Float)
     val total: Int = bodies.size
     def insert(b: Body): Quad = {
       if (size > minimumSize) {
